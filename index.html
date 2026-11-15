@@ -100,8 +100,8 @@
 <script>
 const P = Physics;
 const LEVELS = globalThis.LEVELS || [];
-const WORLD_NAMES = { 1: 'World 1 Â· First Flights', 2: 'World 2 Â· Moving Targets', 3: 'World 3 Â· Stardust and Repulsors',
-  4: 'World 4 Â· Wormholes', 5: 'World 5 Â· Mirror Walls', 6: 'World 6 Â· Speed Gates' };
+const WORLD_NAMES = { 1: 'World 1 · First Flights', 2: 'World 2 · Moving Targets', 3: 'World 3 · Stardust and Repulsors',
+  4: 'World 4 · Wormholes', 5: 'World 5 · Mirror Walls', 6: 'World 6 · Speed Gates' };
 const PORTAL_COLORS = ['#5fd0ff', '#ff8ad8', '#ffd75e', '#9dff8a'];
 const worldOf = level => +level.id.match(/^w(\d+)/)[1];
 const $ = id => document.getElementById(id);
@@ -159,7 +159,7 @@ function resetShot() {
 }
 
 function updateShots() {
-  $('lvlShots').textContent = `Shots: ${shots}  Â·  3 stars in ${level.par} or fewer`;
+  $('lvlShots').textContent = `Shots: ${shots}  ·  3 stars in ${level.par} or fewer`;
 }
 
 function fire(vx, vy) {
@@ -188,7 +188,7 @@ function endFlight(result) {
       $('winTitle').textContent = last ? 'You finished the game!' : 'Level complete';
       $('winText').textContent = `Solved in ${shots} shot${shots === 1 ? '' : 's'}.`;
     }
-    $('winStars').innerHTML = 'â˜…'.repeat(stars) + '<i>' + 'â˜…'.repeat(3 - stars) + '</i>';
+    $('winStars').innerHTML = '★'.repeat(stars) + '<i>' + '★'.repeat(3 - stars) + '</i>';
     $('btnNext').hidden = last || !isUnlocked(levelIndex + 1);
     setTimeout(() => { if (mode === 'won') $('win').hidden = false; }, 700);
     return;
@@ -227,7 +227,7 @@ function showMenu() {
       const s = progress[l.id] || 0;
       b.className = 'lvl';
       b.disabled = !isUnlocked(i);
-      b.innerHTML = `<b>${l.id.slice(1).replace('-', '.')}</b><span>${b.disabled ? 'ðŸ”’' : 'â˜…'.repeat(s) || '&nbsp;'}</span>`;
+      b.innerHTML = `<b>${l.id.slice(1).replace('-', '.')}</b><span>${b.disabled ? '🔒' : '★'.repeat(s) || '&nbsp;'}</span>`;
       b.title = l.name;
       b.onclick = () => startLevel(i);
       grid.appendChild(b);
@@ -303,7 +303,7 @@ function drawExtras() {
     ctx.fillStyle = color + '1c'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
     ctx.fillStyle = color; ctx.font = `600 ${Math.max(10, Math.round(13 * zoom + 4))}px system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('Ã—' + g.boost, x, y);
+    ctx.fillText('×' + g.boost, x, y);
     ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = 1;
   }
