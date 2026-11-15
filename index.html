@@ -82,10 +82,15 @@
 <script src="levels/world1.js"></script>
 <script src="levels/world2.js"></script>
 <script src="levels/world3.js"></script>
+<script src="levels/world4.js"></script>
+<script src="levels/world5.js"></script>
+<script src="levels/world6.js"></script>
 <script>
 const P = Physics;
 const LEVELS = globalThis.LEVELS || [];
-const WORLD_NAMES = { 1: 'World 1 · First Flights', 2: 'World 2 · Moving Targets', 3: 'World 3 · Stardust and Repulsors' };
+const WORLD_NAMES = { 1: 'World 1 · First Flights', 2: 'World 2 · Moving Targets', 3: 'World 3 · Stardust and Repulsors',
+  4: 'World 4 · Wormholes', 5: 'World 5 · Mirror Walls', 6: 'World 6 · Speed Gates' };
+const PORTAL_COLORS = ['#5fd0ff', '#ff8ad8', '#ffd75e', '#9dff8a'];
 const worldOf = level => +level.id.match(/^w(\d+)/)[1];
 const $ = id => document.getElementById(id);
 
@@ -219,12 +224,61 @@ function drawPath(pts, color, alpha, width) {
   if (pts.length < 4) return;
   ctx.strokeStyle = color; ctx.globalAlpha = alpha; ctx.lineWidth = width;
   ctx.beginPath();
+  let pen = false;                     // a NaN entry lifts the pen (used when a wormhole moves the probe)
   for (let i = 0; i < pts.length; i += 2) {
+    if (isNaN(pts[i])) { pen = false; continue; }
     const [x, y] = toScreen(pts[i], pts[i + 1]);
-    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    pen ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    pen = true;
   }
   ctx.stroke();
   ctx.globalAlpha = 1;
+}
+
+// Wormholes, mirror walls and speed gates (Worlds 4 to 6).
+function drawExtras() {
+  st.portals.forEach((pair, i) => {
+    const color = PORTAL_COLORS[i % PORTAL_COLORS.length];
+    const [ax, ay] = toScreen(pair.a.x, pair.a.y), [bx, by] = toScreen(pair.b.x, pair.b.y);
+    ctx.strokeStyle = color; ctx.globalAlpha = 0.13; ctx.lineWidth = 1; ctx.setLineDash([3, 9]);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();   // faint line joining the pair
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    for (const [x, y, dir] of [[ax, ay, 1], [bx, by, -1]]) {
+      const r = P.PORTAL_R * zoom;
+      ctx.fillStyle = color + '22'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+      ctx.strokeStyle = color; ctx.lineWidth = 2;
+      for (let k = 0; k < 3; k++) {                    // three arcs that spin, like a swirl
+        const a = clock * 2 * dir + k * Math.PI * 2 / 3;
+        ctx.beginPath(); ctx.arc(x, y, r, a, a + 1.3); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, y, r * 0.55, -a, -a + 1.1); ctx.stroke();
+      }
+    }
+  });
+
+  ctx.lineCap = 'round';
+  for (const w of st.walls) {
+    const [x1, y1] = toScreen(w.x1, w.y1), [x2, y2] = toScreen(w.x2, w.y2);
+    ctx.strokeStyle = 'rgba(150,220,255,.25)'; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();    // soft glow
+    ctx.strokeStyle = '#d6f1ff'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+
+  for (const g of st.gates) {
+    const [x, y] = toScreen(g.x, g.y), r = P.GATE_R * zoom;
+    const color = g.boost > 1 ? '#ffb347' : '#ff6b8a';   // orange = faster, pink = brake
+    ctx.globalAlpha = g.used ? 0.3 : 1;
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash([7, 5]); ctx.lineDashOffset = -clock * 14;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    ctx.fillStyle = color + '1c'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = color; ctx.font = `600 ${Math.max(10, Math.round(13 * zoom + 4))}px system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('×' + g.boost, x, y);
+    ctx.textBaseline = 'alphabetic';
+    ctx.globalAlpha = 1;
+  }
 }
 
 function draw() {
@@ -265,6 +319,7 @@ function draw() {
     ctx.beginPath(); ctx.arc(x, y, P.DUST_R * zoom, 0, 7); ctx.stroke();
   }
 
+  drawExtras();
   drawPath(ghost, '#8a9bff', 0.3, 1.5);       // the previous shot, to help adjust the next one
   drawPath(trail, '#ffffff', 0.85, 2);
 
@@ -352,6 +407,12 @@ function advance(dt) {
   while (stepBank >= P.DT && mode === 'fly') {
     stepBank -= P.DT;
     const result = P.stepState(st);
+    for (const e of st.events) {               // a bounce, wormhole trip or gate happened this step
+      if (e.type === 'wall') { trail.push(e.x, e.y); burst(e.x, e.y, '#d6f1ff', 6); }
+      if (e.type === 'portal') { trail.push(e.x, e.y, NaN, NaN); burst(e.x, e.y, '#ffffff', 10); burst(st.probe.x, st.probe.y, '#ffffff', 10); }
+      if (e.type === 'gate') burst(e.x, e.y, '#ffb347', 14);
+    }
+    st.events.length = 0;
     trail.push(st.probe.x, st.probe.y);
     if (result) endFlight(result);
   }

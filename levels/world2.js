@@ -22,14 +22,14 @@
     name: 'Swoop',
     hint: 'Launching faster or slower changes where you meet the green planet, so try a new speed, not just a new aim.',
     pad: { x: -480, y: 250 },
-    target: { x: 480, y: 120, r: 19 },
+    target: { x: 480, y: 120, r: 16 },
     bodies: [
-      { x: 0, y: -160, m: 1000000, fixed: true, color: '#ff9a6b' },
-      { x: -190.5, y: -50, m: 200000, vx: 33.7, vy: 58.4, color: '#7be3a4' },
+      { x: 0, y: -100, m: 1000000, fixed: true, color: '#ff9a6b' },
+      { x: -190.5, y: 10, m: 200000, vx: 33.7, vy: 58.4, color: '#7be3a4' },
     ],
     dust: [],
     par: 2,
-    solution: { vx: 119.7, vy: 8.4 },
+    solution: { vx: 129.3, vy: 13.6 },
   },
   // Two stars dance around each other in the middle, so the pull keeps changing direction.
   {
@@ -52,7 +52,7 @@
     name: 'Clockwork',
     hint: 'Each planet circles at its own pace, so a slower shot finds them in new places and can open a way through.',
     pad: { x: -420, y: 340 },
-    target: { x: 480, y: 60, r: 15 },
+    target: { x: 480, y: 30, r: 15 },
     bodies: [
       { x: 0, y: 0, m: 1000000, fixed: true, color: '#ffe28a' },
       { x: -91.9, y: 91.9, m: 20000, vx: -62.0, vy: -62.0, color: '#e87f7f' },
@@ -61,6 +61,6 @@
     ],
     dust: [],
     par: 3,
-    solution: { vx: 119.5, vy: -10.5 },
+    solution: { vx: 138.3, vy: -21.9 },
   },
 );

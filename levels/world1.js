@@ -1,4 +1,4 @@
-﻿// World 1: First Flights. Still planets and stars only.
+// World 1: First Flights. Still planets and stars only.
 // The level format is explained at the top of physics.js.
 (globalThis.LEVELS = globalThis.LEVELS || []).push(
   // Straight shot: a small giant off to the side barely tugs the probe.
@@ -24,11 +24,11 @@
     pad: { x: 350, y: 300 },
     target: { x: -380, y: -220, r: 35 },
     bodies: [
-      { x: -10, y: 50, m: 120000, fixed: true, color: '#6fe0e0' },
+      { x: -10, y: 50, m: 180000, fixed: true, color: '#6fe0e0' },
     ],
     dust: [],
     par: 2,
-    solution: { vx: -113.2, vy: -98.4 },
+    solution: { vx: -141.2, vy: -127.1 },
   },
   // A heavy star blocks the way completely; swing past its side like a slingshot.
   {

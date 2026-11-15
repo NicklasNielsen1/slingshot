@@ -33,8 +33,8 @@ function robust(level, vx, vy) {
 // Can you win by simply pointing at the target?
 function directWin(level) {
   const base = Math.atan2(level.target.y - level.pad.y, level.target.x - level.pad.x);
-  for (let d = -2; d <= 2; d++)
-    for (let s = 50; s <= P.MAX_SPEED; s += 25)
+  for (let d = -3; d <= 3; d += 0.5)
+    for (let s = 30; s <= P.MAX_SPEED; s += 10)
       if (wins(level, Math.cos(base + rad(d)) * s, Math.sin(base + rad(d)) * s)) return { deg: d, speed: s };
   return null;
 }
@@ -73,6 +73,40 @@ function validate(level) {
   });
   if (Math.hypot(level.target.x - level.pad.x, level.target.y - level.pad.y) < 150) errs.push('pad and target are too close together');
 
+  // The extras from World 4 onwards: wormholes, mirror walls and speed gates.
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const fixedBodies = level.bodies.filter(b => b.fixed);
+  const spot = (o, r, what) => {                 // a round thing of radius r at o must sit in clear space
+    if (!o || !inArea(o, 20)) { errs.push(`${what}: missing or outside the play area`); return; }
+    if (dist(o, level.pad) < r + 15) errs.push(`${what}: too close to the pad`);
+    if (dist(o, level.target) < r + level.target.r) errs.push(`${what}: overlaps the target`);
+    if (fixedBodies.some(b => dist(o, b) < r + P.radiusFor(b.m))) errs.push(`${what}: overlaps a fixed body`);
+  };
+  const ends = [];
+  (level.portals || []).forEach((p, i) => {
+    spot(p.a, P.PORTAL_R, `portal ${i} end a`); spot(p.b, P.PORTAL_R, `portal ${i} end b`);
+    if (p.a && p.b) ends.push(p.a, p.b);
+  });
+  ends.forEach((e, i) => ends.forEach((f, j) => {
+    if (j > i && dist(e, f) < P.PORTAL_R * 2 + 20) errs.push('two wormhole ends are too close together');
+  }));
+  (level.walls || []).forEach((w, i) => {
+    const a = { x: w.x1, y: w.y1 }, b = { x: w.x2, y: w.y2 };
+    if (!inArea(a) || !inArea(b)) { errs.push(`wall ${i}: outside the play area`); return; }
+    const len = dist(a, b);
+    if (len < 30) { errs.push(`wall ${i}: shorter than 30`); return; }
+    const toWall = o => {                        // shortest distance from a point to the wall
+      const t = Math.max(0, Math.min(1, ((o.x - a.x) * (b.x - a.x) + (o.y - a.y) * (b.y - a.y)) / (len * len)));
+      return Math.hypot(a.x + t * (b.x - a.x) - o.x, a.y + t * (b.y - a.y) - o.y);
+    };
+    if (toWall(level.pad) < 20) errs.push(`wall ${i}: too close to the pad`);
+    if (toWall(level.target) < level.target.r) errs.push(`wall ${i}: cuts through the target`);
+  });
+  (level.gates || []).forEach((g, i) => {
+    spot(g, P.GATE_R, `gate ${i}`);
+    if (!num(g.boost) || g.boost < 0.3 || g.boost > 2.5 || Math.abs(g.boost - 1) < 0.1) errs.push(`gate ${i}: boost must be 0.3 to 2.5 and not close to 1`);
+  });
+
   // Moving bodies must stay in play, and never pass through each other, for a whole flight.
   const st = P.createState(level);
   const touched = new Set();
@@ -81,6 +115,10 @@ function validate(level) {
     st.bodies.forEach((b, bi) => st.bodies.forEach((c, ci) => {
       if (ci > bi && Math.hypot(b.x - c.x, b.y - c.y) < b.r + c.r) touched.add(`bodies ${bi} and ${ci} pass through each other`);
     }));
+    st.bodies.forEach((b, bi) => {
+      if (!isFinite(b.x) || !isFinite(b.y)) touched.add(`body ${bi}: its position stops being a number`);
+      if (Math.hypot(b.x - level.pad.x, b.y - level.pad.y) < b.r + 25) touched.add(`body ${bi}: passes over the pad`);
+    });
   }
   errs.push(...touched);
   st.bodies.forEach((b, i) => {
@@ -98,6 +136,15 @@ function checkLevel(level) {
   if (!robust(level, s.vx, s.vy)) errs.push('solution is too fiddly: it fails when nudged by 1% speed or 0.5 degrees');
   const d = directWin(level);
   if (d && !level.allowDirect) errs.push(`aiming straight at the target wins (offset ${d.deg} deg, speed ${d.speed})`);
+
+  // Worlds 4 to 6 each have their own ingredient. It must be part of the puzzle, not decoration:
+  // the solution has to use it, and has to stop winning when it is taken away.
+  const key = { 4: 'portals', 5: 'walls', 6: 'gates' }[+level.id.match(/^w(\d+)/)[1]];
+  if (key) {
+    if (!(level[key] || []).length) errs.push(`a world ${level.id[1]} level needs ${key}`);
+    else if (!r.used[key]) errs.push(`the solution never uses the ${key}`);
+    else if (wins({ ...level, [key]: [] }, s.vx, s.vy)) errs.push(`the solution still wins with the ${key} removed`);
+  }
   return errs;
 }
 
