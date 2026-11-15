@@ -74,6 +74,9 @@
     <p id="devNote" hidden style="color:#ffb347">Dev mode: all levels unlocked. Type "dev" again to turn it off.</p>
     <div id="worlds"></div>
     <div class="rowc"><a class="btn" href="sandbox.html">Free play (sandbox)</a></div>
+    <!-- TEMPORARY, for testing on a phone: remove this button (and its line in showMenu and
+         its onclick below) when it is no longer needed. Typing "dev" keeps working without it. -->
+    <div class="rowc"><button id="btnDev" style="opacity:.6;font-size:12px"></button></div>
   </div>
 </div>
 
@@ -123,11 +126,14 @@ addEventListener('keydown', e => {
   typed = (typed + e.key.toLowerCase()).slice(-3);
   if (typed !== 'dev') return;
   typed = '';
+  toggleDev();
+});
+function toggleDev() {
   unlockAll = !unlockAll;
   try { localStorage.setItem(DEV_KEY, unlockAll ? '1' : '0'); } catch (e) {}
   if (mode === 'menu') showMenu();
   else message = { until: clock + 2.2, text: unlockAll ? 'Dev mode on: all levels unlocked' : 'Dev mode off' };
-});
+}
 const isUnlocked = i => unlockAll || i === 0 || progress[LEVELS[i - 1].id] > 0;
 
 // ---------- Game state ----------
@@ -212,6 +218,7 @@ function showMenu() {
   mode = 'menu'; aiming = false; aim = null;
   $('menu').hidden = false; $('win').hidden = true; $('hud').hidden = true; $('buttons').hidden = true;
   $('devNote').hidden = !unlockAll;
+  $('btnDev').textContent = unlockAll ? 'Dev mode: on (tap to turn off)' : 'Dev mode: off (tap to unlock all levels)';
   const box = $('worlds');
   box.innerHTML = '';
   const worlds = [...new Set(LEVELS.map(worldOf))];
@@ -504,6 +511,7 @@ function launchAim() {
 }
 $('btnLaunch').onclick = launchAim;
 
+$('btnDev').onclick = toggleDev;      // TEMPORARY, see the note by the button
 $('btnMenu').onclick = showMenu;
 $('btnWinMenu').onclick = showMenu;
 $('btnReplay').onclick = () => startLevel(levelIndex);
