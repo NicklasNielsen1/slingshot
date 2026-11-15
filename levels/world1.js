@@ -5,7 +5,7 @@
   {
     id: 'w1-1',
     name: 'First Flight',
-    hint: 'Drag away from the launch pad to aim, then let go.',
+    hint: 'Drag anywhere on the screen to set the direction and power, then press Launch.',
     pad: { x: -420, y: 0 },
     target: { x: 420, y: 0, r: 40 },
     bodies: [

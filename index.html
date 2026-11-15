@@ -24,6 +24,15 @@
     border-radius: 8px; padding: 6px 12px; cursor: pointer; text-decoration: none; display: inline-block; }
   button:hover, a.btn:hover { background: #262f5e; }
   button.primary { background: #4254c5; border-color: #8a9bff; }
+  #btnLaunch { font-weight: 600; padding-left: 22px; padding-right: 22px; }
+  /* Phones and other small or touch screens: bigger buttons, smaller info panel. */
+  @media (pointer: coarse), (max-width: 700px) {
+    #buttons button { padding: 11px 16px; font-size: 15px; }
+    #hud { padding: 7px 9px; max-width: min(300px, calc(100% - 24px)); }
+    #hud h1 { font-size: 14px; }
+    #hud p { font-size: 11.5px; margin-top: 2px; }
+  }
+  html, body { overscroll-behavior: none; user-select: none; -webkit-user-select: none; }
   button:disabled { opacity: .4; cursor: default; }
   .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(5, 6, 13, .72); padding: 16px; overflow: auto; }
@@ -49,17 +58,19 @@
   <h1 id="lvlName"></h1>
   <p id="lvlHint"></p>
   <p class="shots" id="lvlShots"></p>
+  <p id="turn" hidden style="color:#ffb347">Tip: turn your phone sideways for a bigger view.</p>
 </div>
 
 <div id="buttons" hidden>
   <button id="btnMenu">Levels</button>
   <button id="btnSolution">Show solution</button>
+  <button id="btnLaunch" class="primary" disabled>Launch</button>
 </div>
 
 <div id="menu" class="overlay">
   <div class="card panel">
     <h2>SLINGSHOT</h2>
-    <p>Launch your probe, let gravity bend its path, and reach the green ring.</p>
+    <p>Drag anywhere on the screen to aim, press Launch, and let gravity bend your probe's path into the green ring.</p>
     <p id="devNote" hidden style="color:#ffb347">Dev mode: all levels unlocked. Type "dev" again to turn it off.</p>
     <div id="worlds"></div>
     <div class="rowc"><a class="btn" href="sandbox.html">Free play (sandbox)</a></div>
@@ -89,8 +100,8 @@
 <script>
 const P = Physics;
 const LEVELS = globalThis.LEVELS || [];
-const WORLD_NAMES = { 1: 'World 1 · First Flights', 2: 'World 2 · Moving Targets', 3: 'World 3 · Stardust and Repulsors',
-  4: 'World 4 · Wormholes', 5: 'World 5 · Mirror Walls', 6: 'World 6 · Speed Gates' };
+const WORLD_NAMES = { 1: 'World 1 Â· First Flights', 2: 'World 2 Â· Moving Targets', 3: 'World 3 Â· Stardust and Repulsors',
+  4: 'World 4 Â· Wormholes', 5: 'World 5 Â· Mirror Walls', 6: 'World 6 Â· Speed Gates' };
 const PORTAL_COLORS = ['#5fd0ff', '#ff8ad8', '#ffd75e', '#9dff8a'];
 const worldOf = level => +level.id.match(/^w(\d+)/)[1];
 const $ = id => document.getElementById(id);
@@ -132,7 +143,7 @@ let aiming = false;         // true while the pointer is held down to aim
 
 function startLevel(i) {
   if (!LEVELS[i] || !isUnlocked(i)) return;      // no such level, or still locked
-  aiming = false;
+  aiming = false; aim = null;
   levelIndex = i; level = LEVELS[i];
   shots = 0; usedSolution = false; ghost = []; sparks = []; message = null;
   resetShot();
@@ -144,17 +155,17 @@ function startLevel(i) {
 
 function resetShot() {
   st = P.createState(level);
-  trail = []; aim = null; stepBank = 0; mode = 'aim';
+  trail = []; stepBank = 0; mode = 'aim';     // the last aim is kept, so you can adjust it and try again
 }
 
 function updateShots() {
-  $('lvlShots').textContent = `Shots: ${shots}  ·  3 stars in ${level.par} or fewer`;
+  $('lvlShots').textContent = `Shots: ${shots}  Â·  3 stars in ${level.par} or fewer`;
 }
 
 function fire(vx, vy) {
   if (mode !== 'aim') return;
   P.launch(st, vx, vy);
-  shots++; trail = [st.probe.x, st.probe.y]; mode = 'fly'; aim = null; aiming = false; message = null;
+  shots++; trail = [st.probe.x, st.probe.y]; mode = 'fly'; aiming = false; message = null;
   updateShots();
 }
 
@@ -177,7 +188,7 @@ function endFlight(result) {
       $('winTitle').textContent = last ? 'You finished the game!' : 'Level complete';
       $('winText').textContent = `Solved in ${shots} shot${shots === 1 ? '' : 's'}.`;
     }
-    $('winStars').innerHTML = '★'.repeat(stars) + '<i>' + '★'.repeat(3 - stars) + '</i>';
+    $('winStars').innerHTML = 'â˜…'.repeat(stars) + '<i>' + 'â˜…'.repeat(3 - stars) + '</i>';
     $('btnNext').hidden = last || !isUnlocked(levelIndex + 1);
     setTimeout(() => { if (mode === 'won') $('win').hidden = false; }, 700);
     return;
@@ -216,7 +227,7 @@ function showMenu() {
       const s = progress[l.id] || 0;
       b.className = 'lvl';
       b.disabled = !isUnlocked(i);
-      b.innerHTML = `<b>${l.id.slice(1).replace('-', '.')}</b><span>${b.disabled ? '🔒' : '★'.repeat(s) || '&nbsp;'}</span>`;
+      b.innerHTML = `<b>${l.id.slice(1).replace('-', '.')}</b><span>${b.disabled ? 'ðŸ”’' : 'â˜…'.repeat(s) || '&nbsp;'}</span>`;
       b.title = l.name;
       b.onclick = () => startLevel(i);
       grid.appendChild(b);
@@ -292,7 +303,7 @@ function drawExtras() {
     ctx.fillStyle = color + '1c'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
     ctx.fillStyle = color; ctx.font = `600 ${Math.max(10, Math.round(13 * zoom + 4))}px system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('×' + g.boost, x, y);
+    ctx.fillText('Ã—' + g.boost, x, y);
     ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = 1;
   }
@@ -372,7 +383,7 @@ function draw() {
     ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(qx, qy, 4, 0, 7); ctx.fill();
   }
 
-  if (aim) drawAim(px, py);
+  if (aim && mode === 'aim') drawAim(px, py);
 
   for (const s of sparks) {
     const [x, y] = toScreen(s.x, s.y);
@@ -392,11 +403,13 @@ function draw() {
 // While aiming: an arrow, the power, and the first moment of the real flight path as dots.
 function drawAim(px, py) {
   const speed = Math.hypot(aim.vx, aim.vy);
-  const ex = px + aim.vx * zoom, ey = py + aim.vy * zoom;
+  // The arrow has a fixed size on screen (110 pixels at full power), so it is easy to see on a phone.
+  const ex = px + aim.vx / P.MAX_SPEED * 110, ey = py + aim.vy / P.MAX_SPEED * 110;
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ex, ey); ctx.stroke();
-  ctx.fillStyle = '#ffffff'; ctx.font = '13px system-ui, sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(`Power ${Math.round(100 * speed / P.MAX_SPEED)}%`, px, py + 30);
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(ex, ey, 4, 0, 7); ctx.fill();
+  ctx.font = '600 14px system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(`Power ${Math.round(100 * speed / P.MAX_SPEED)}%`, px, py + (aim.vy > 0 ? -18 : 30));
 
   const ghostState = P.createState(level);
   P.launch(ghostState, aim.vx, aim.vy);
@@ -412,6 +425,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now; clock += dt;
   if (mode === 'fly') advance(dt);
+  $('btnLaunch').disabled = !(mode === 'aim' && aim);
   for (const s of sparks) { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; }
   sparks = sparks.filter(s => s.life > 0);
   draw();
@@ -439,26 +453,40 @@ function advance(dt) {
 function resize() {
   W = innerWidth; H = innerHeight;
   canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
-  zoom = Math.min(W / (P.BOUNDS.x * 2 + 40), H / (P.BOUNDS.y * 2 + 40));
+  // Big screens show the whole of space out to the dashed edge. Small screens (phones) zoom in
+  // on the play area itself, where everything in a level sits, so things are not tiny.
+  const view = Math.min(W, H) < 600 ? P.AREA : P.BOUNDS;
+  zoom = Math.min(W / (view.x * 2 + 40), H / (view.y * 2 + 40));
+  $('turn').hidden = !(H > W && W < 600);
 }
 addEventListener('resize', resize);
 
+// Aiming works like a trackpad: press anywhere and drag. The drag moves the tip of the aim
+// arrow, starting from wherever the arrow already was, so your finger never has to be on the
+// launch pad and never covers it. Short drags make small adjustments. Nothing launches until
+// the Launch button (or the space bar) is pressed.
+let dragStart = null;       // where the current drag began, and the aim at that moment
 function setAim(e) {
-  const [x, y] = toWorld(e.clientX, e.clientY);
-  aim = P.clampLaunch(x - level.pad.x, y - level.pad.y);
+  const full = Math.max(140, Math.min(W, H) * 0.45);    // pixels of drag that give full power
+  const k = P.MAX_SPEED / full;
+  aim = P.clampLaunch(dragStart.vx + (e.clientX - dragStart.x) * k, dragStart.vy + (e.clientY - dragStart.y) * k);
 }
 canvas.addEventListener('pointerdown', e => {
   if (mode !== 'aim' || e.button !== 0) return;
-  canvas.setPointerCapture(e.pointerId);
-  aiming = true; setAim(e);
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}   // keeps the drag even if the finger leaves the canvas
+  aiming = true;
+  dragStart = { x: e.clientX, y: e.clientY, vx: aim ? aim.vx : 0, vy: aim ? aim.vy : 0 };
 });
-canvas.addEventListener('pointermove', e => { if (aiming) setAim(e); });
-canvas.addEventListener('pointerup', () => {
-  if (!aiming) return;
+canvas.addEventListener('pointermove', e => { if (aiming && mode === 'aim') setAim(e); });
+function endDrag() {
   aiming = false;
-  if (aim && Math.hypot(aim.vx, aim.vy) >= 15) fire(aim.vx, aim.vy); else aim = null;   // tiny drags are ignored
-});
-canvas.addEventListener('pointercancel', () => { aiming = false; aim = null; });
+  if (aim && Math.hypot(aim.vx, aim.vy) < 5) aim = null;      // dragged back to nothing
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+function launchAim() { if (mode === 'aim' && aim && !aiming) fire(aim.vx, aim.vy); }
+$('btnLaunch').onclick = launchAim;
 
 $('btnMenu').onclick = showMenu;
 $('btnWinMenu').onclick = showMenu;
@@ -471,6 +499,7 @@ $('btnSolution').onclick = () => {
 };
 addEventListener('keydown', e => {
   if (e.code === 'Escape' && mode !== 'menu') showMenu();
+  if (e.code === 'Space' && e.target.tagName !== 'BUTTON') { e.preventDefault(); launchAim(); }
   // Enter means "next level", unless a button has the keyboard focus (then Enter presses that button).
   if (e.code === 'Enter' && e.target.tagName !== 'BUTTON' && mode === 'won' && !$('win').hidden && !$('btnNext').hidden)
     startLevel(levelIndex + 1);
