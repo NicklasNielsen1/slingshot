@@ -107,6 +107,40 @@ function validate(level) {
     if (!num(g.boost) || g.boost < 0.3 || g.boost > 2.5 || Math.abs(g.boost - 1) < 0.1) errs.push(`gate ${i}: boost must be 0.3 to 2.5 and not close to 1`);
   });
 
+  // The extras must not sit on top of each other, or odd things happen (a bounce straight
+  // back into a wormhole, a gate firing the moment you leave a wormhole, unreachable dust).
+  const segDist = (o, w) => {                    // shortest distance from point o to wall w
+    const dx = w.x2 - w.x1, dy = w.y2 - w.y1, l2 = dx * dx + dy * dy;
+    const t = Math.max(0, Math.min(1, ((o.x - w.x1) * dx + (o.y - w.y1) * dy) / l2));
+    return Math.hypot(w.x1 + t * dx - o.x, w.y1 + t * dy - o.y);
+  };
+  const walls = (level.walls || []).filter(w => Math.hypot(w.x2 - w.x1, w.y2 - w.y1) >= 30);
+  const gates = (level.gates || []).filter(g => g && num(g.x) && num(g.y));
+  walls.forEach((w, i) => {
+    if (ends.some(e => segDist(e, w) < P.PORTAL_R + 10)) errs.push(`wall ${i}: too close to a wormhole end`);
+    if (gates.some(g => segDist(g, w) < P.GATE_R + 10)) errs.push(`wall ${i}: too close to a gate`);
+    if ((level.dust || []).some(d => segDist(d, w) < 10)) errs.push(`wall ${i}: too close to stardust`);
+    if (fixedBodies.some(b => segDist(b, w) < P.radiusFor(b.m) + 30)) errs.push(`wall ${i}: too close to a fixed body`);
+    walls.forEach((v, j) => {
+      if (j <= i) return;
+      const near = [[w.x1, w.y1], [w.x2, w.y2]].some(([x, y]) => segDist({ x, y }, v) < 10) ||
+                   [[v.x1, v.y1], [v.x2, v.y2]].some(([x, y]) => segDist({ x, y }, w) < 10);
+      const d1 = (v.x1 - w.x1) * (w.y2 - w.y1) - (v.y1 - w.y1) * (w.x2 - w.x1);
+      const d2 = (v.x2 - w.x1) * (w.y2 - w.y1) - (v.y2 - w.y1) * (w.x2 - w.x1);
+      const d3 = (w.x1 - v.x1) * (v.y2 - v.y1) - (w.y1 - v.y1) * (v.x2 - v.x1);
+      const d4 = (w.x2 - v.x1) * (v.y2 - v.y1) - (w.y2 - v.y1) * (v.x2 - v.x1);
+      const cross = d1 * d2 < 0 && d3 * d4 < 0;
+      if (!near && !cross) return;
+      let ang = Math.abs(Math.atan2(w.y2 - w.y1, w.x2 - w.x1) - Math.atan2(v.y2 - v.y1, v.x2 - v.x1)) * 180 / Math.PI % 180;
+      if (ang > 90) ang = 180 - ang;
+      if (ang < 30) errs.push(`walls ${i} and ${j} meet at a sharp angle (under 30 degrees)`);
+    });
+  });
+  ends.forEach(e => {
+    if ((level.dust || []).some(d => dist(d, e) < P.PORTAL_R + P.DUST_R)) errs.push('stardust is inside a wormhole end');
+    if (gates.some(g => dist(g, e) < P.PORTAL_R + P.GATE_R + 10)) errs.push('a gate is too close to a wormhole end');
+  });
+
   // Moving bodies must stay in play, and never pass through each other, for a whole flight.
   const st = P.createState(level);
   const touched = new Set();
@@ -141,7 +175,7 @@ function checkLevel(level) {
   // the solution has to use it, and has to stop winning when it is taken away.
   const key = { 4: 'portals', 5: 'walls', 6: 'gates' }[+level.id.match(/^w(\d+)/)[1]];
   if (key) {
-    if (!(level[key] || []).length) errs.push(`a world ${level.id[1]} level needs ${key}`);
+    if (!(level[key] || []).length) errs.push(`levels in this world need ${key}`);
     else if (!r.used[key]) errs.push(`the solution never uses the ${key}`);
     else if (wins({ ...level, [key]: [] }, s.vx, s.vy)) errs.push(`the solution still wins with the ${key} removed`);
   }

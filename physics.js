@@ -32,6 +32,8 @@
 //   walls: [ { x1: -100, y1: -200, x2: 100, y2: -200 } ],
 //       // A straight mirror wall from (x1, y1) to (x2, y2). The probe bounces off it
 //       // like a ball off a cushion, keeping its speed. Both sides bounce.
+//       // (Right next to a heavy body the bounce can change the speed slightly, so the
+//       // checker keeps walls away from bodies, and from sharp corners with other walls.)
 //   gates: [ { x: 0, y: 150, boost: 1.5 } ],
 //       // A speed gate. Fly within GATE_R of it and your speed is multiplied by boost
 //       // (more than 1 = faster, less than 1 = a brake). Each gate works once per shot.
@@ -99,7 +101,7 @@
   function bounceOffWalls(state, x0, y0) {
     const p = state.probe;
     let lastWall = null;
-    for (let pass = 0; pass < 3; pass++) {           // up to 3 bounces in one step (corners)
+    for (let pass = 0; pass < 8; pass++) {           // up to 8 bounces in one step (corners)
       let best = null, bestT = Infinity;
       for (const w of state.walls) {
         if (w === lastWall) continue;
