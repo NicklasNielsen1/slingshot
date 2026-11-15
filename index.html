@@ -60,6 +60,7 @@
   <div class="card panel">
     <h2>SLINGSHOT</h2>
     <p>Launch your probe, let gravity bend its path, and reach the green ring.</p>
+    <p id="devNote" hidden style="color:#ffb347">Dev mode: all levels unlocked. Type "dev" again to turn it off.</p>
     <div id="worlds"></div>
     <div class="rowc"><a class="btn" href="sandbox.html">Free play (sandbox)</a></div>
   </div>
@@ -99,7 +100,22 @@ const SAVE_KEY = 'slingshot-progress';
 let progress = {};
 try { progress = JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch (e) { progress = {}; }
 function saveProgress() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (e) {} }
-const unlockAll = location.search.includes('unlock');     // add ?unlock to the address to open every level
+// Dev mode opens every level for testing. Turn it on or off by typing the letters d, e, v
+// anywhere on the page (or add ?unlock to the address). It is remembered in this browser.
+const DEV_KEY = 'slingshot-dev';
+let unlockAll = location.search.includes('unlock');
+try { unlockAll = unlockAll || localStorage.getItem(DEV_KEY) === '1'; } catch (e) {}
+let typed = '';
+addEventListener('keydown', e => {
+  if (e.key.length !== 1) return;
+  typed = (typed + e.key.toLowerCase()).slice(-3);
+  if (typed !== 'dev') return;
+  typed = '';
+  unlockAll = !unlockAll;
+  try { localStorage.setItem(DEV_KEY, unlockAll ? '1' : '0'); } catch (e) {}
+  if (mode === 'menu') showMenu();
+  else message = { until: clock + 2.2, text: unlockAll ? 'Dev mode on: all levels unlocked' : 'Dev mode off' };
+});
 const isUnlocked = i => unlockAll || i === 0 || progress[LEVELS[i - 1].id] > 0;
 
 // ---------- Game state ----------
@@ -183,6 +199,7 @@ function burst(x, y, color, n) {
 function showMenu() {
   mode = 'menu'; aiming = false; aim = null;
   $('menu').hidden = false; $('win').hidden = true; $('hud').hidden = true; $('buttons').hidden = true;
+  $('devNote').hidden = !unlockAll;
   const box = $('worlds');
   box.innerHTML = '';
   const worlds = [...new Set(LEVELS.map(worldOf))];
