@@ -425,7 +425,8 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now; clock += dt;
   if (mode === 'fly') advance(dt);
-  $('btnLaunch').disabled = !(mode === 'aim' && aim);
+  $('btnLaunch').disabled = !(mode === 'fly' || (mode === 'aim' && aim));
+  $('btnLaunch').textContent = mode === 'fly' ? 'Stop' : 'Launch';
   for (const s of sparks) { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; }
   sparks = sparks.filter(s => s.life > 0);
   draw();
@@ -471,8 +472,19 @@ function setAim(e) {
   const k = P.MAX_SPEED / full;
   aim = P.clampLaunch(dragStart.vx + (e.clientX - dragStart.x) * k, dragStart.vy + (e.clientY - dragStart.y) * k);
 }
+// Give up on a flight early, without waiting for it to crash or run out of fuel.
+// It counts as a shot, and the path so far stays on screen as a guide for the next try.
+function stopFlight() {
+  if (mode !== 'fly') return;
+  ghost = trail;
+  message = { until: clock + 1.2, text: 'Stopped' };
+  resetShot();
+}
+
 canvas.addEventListener('pointerdown', e => {
-  if (mode !== 'aim' || e.button !== 0) return;
+  if (e.button !== 0) return;
+  stopFlight();              // a tap during a flight ends it; keep dragging to adjust the aim straight away
+  if (mode !== 'aim') return;
   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}   // keeps the drag even if the finger leaves the canvas
   aiming = true;
   dragStart = { x: e.clientX, y: e.clientY, vx: aim ? aim.vx : 0, vy: aim ? aim.vy : 0 };
@@ -485,7 +497,11 @@ function endDrag() {
 canvas.addEventListener('pointerup', endDrag);
 canvas.addEventListener('pointercancel', endDrag);
 
-function launchAim() { if (mode === 'aim' && aim && !aiming) fire(aim.vx, aim.vy); }
+// The Launch button doubles as a Stop button while the probe is flying.
+function launchAim() {
+  if (mode === 'fly') stopFlight();
+  else if (mode === 'aim' && aim && !aiming) fire(aim.vx, aim.vy);
+}
 $('btnLaunch').onclick = launchAim;
 
 $('btnMenu').onclick = showMenu;
